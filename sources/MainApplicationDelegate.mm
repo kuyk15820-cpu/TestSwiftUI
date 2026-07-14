@@ -1,9 +1,8 @@
 #import "MainApplicationDelegate.h"
 #import "SplashAnimation.h"
-#import <app-Swift.h>
 
 @implementation MainApplicationDelegate {
-    UIViewController *_rootViewController; // เปลี่ยนประเภทเป็น UIViewController ทั่วไป
+    UIViewController *_rootViewController; 
     UIViewController *_mainContainer; 
 }
 
@@ -34,13 +33,18 @@
         
         [[SplashAnimation sharedInstance] showWithRepeatCount:1 completion:^{
             
-            //  จุดสำคัญ: เรียกหน้า MainView (SwiftUI) มาครอบด้วย UIHostingController 
-            // โค้ดฝั่ง Swift ต้องประกาศ @objc คลาสแปลงไว้ (ดูวิธีทำด้านล่าง)
-            self->_rootViewController = [SwiftViewFactory createMainView]; 
-            
-            // ในโค้ด Swift ของ MainView เราใส่ NavigationStack ไว้แล้ว 
-            // ดังนั้นเราไม่จำเป็นต้องเอา UINavigationController มาครอบซ้ำอีกครับ 
-            // สามารถสั่งเปลี่ยนหน้าผ่าน CrossDissolve เข้าสู่หน้าหลักได้โดยตรงเลย
+            // [แก้ไขตรงนี้] เปลี่ยนมาใช้การเรียกคลาส Swift แบบ Dynamic Bypass ข้อจำกัดของ Theos Compiler
+            Class factoryClass = NSClassFromString(@"SwiftViewFactory");
+            if (factoryClass) {
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                self->_rootViewController = [factoryClass performSelector:NSSelectorFromString(@"createMainView")];
+                #pragma clang diagnostic pop
+            } else {
+                // เผื่อไว้ในกรณีฉุกเฉินหาคลาสไม่เจอจริงๆ ให้ขึ้นหน้าเปล่าสีดำไว้ไม่ให้แอปเด้ง
+                self->_rootViewController = [[UIViewController alloc] init];
+                self->_rootViewController.view.backgroundColor = [UIColor blackColor];
+            }
             
             [UIView transitionWithView:self->_mainContainer.view
                               duration:0.5
