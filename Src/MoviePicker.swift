@@ -6,7 +6,7 @@ struct MoviePicker: UIViewControllerRepresentable {
     @Binding var currentScale: Float
     @Binding var isProcessing: Bool
     @Binding var alertMessage: String
-    @Environment(\.dismiss) var dismiss
+    @Binding var isShowingPicker: Bool // เชื่อมสถานะการเปิดปิดตรงๆ
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration(photoLibrary: .shared())
@@ -32,16 +32,20 @@ struct MoviePicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            parent.dismiss()
+            // ปิดตัวเลือกระบบภาพ
+            picker.dismiss(animated: true) {
+                // ปิดการเรนเดอร์ Element ใน SwiftUI หลังจาก UI หน้าต่างผลลัพธ์ย่อยหายไปแล้ว
+                self.parent.isShowingPicker = false
+            }
             
             guard let result = results.first else { return }
             let provider = result.itemProvider
             
+            // สั่งให้ตัวโหลดเริ่มทำงานทันทีบน Main เธรด
             DispatchQueue.main.async {
                 self.parent.isProcessing = true
             }
             
-            // ใช้โครงสร้างดึงประเภทแบบเดียวกับโค้ด Objective-C ดั้งเดิมของคุณ
             var typeIdentifier = "public.mpeg-4"
             if !provider.hasItemConformingToTypeIdentifier(typeIdentifier),
                let firstType = provider.registeredTypeIdentifiers.first {
@@ -60,7 +64,6 @@ struct MoviePicker: UIViewControllerRepresentable {
                 }
                 
                 let tempDir = NSTemporaryDirectory()
-                // [แก้ไข] เปลี่ยนกลับมาใช้ .MP4 ตัวพิมพ์ใหญ่ให้ตรงตามสเปคเดิมของโปรเจกต์คุณ
                 let inputPath = (tempDir as NSString).appendingPathComponent("Test.MP4")
                 let outputPath = (tempDir as NSString).appendingPathComponent("Test1.MP4")
                 
@@ -68,18 +71,18 @@ struct MoviePicker: UIViewControllerRepresentable {
                 try? fileManager.removeItem(atPath: inputPath)
                 try? fileManager.removeItem(atPath: outputPath)
                 
-                // ขอสิทธิ์ชั่วคราวก่อนก๊อบปี้ (กันเหนียวสำหรับระบบ SwiftUI Lifecycle)
+                // ถือครองสิทธิ์ชั่วคราวเพื่อคัดลอกไฟล์ต้นฉบับ
                 let accessSecurity = url?.startAccessingSecurityScopedResource() ?? false
                 if let sourceUrl = url {
                     try? fileManager.copyItem(atPath: sourceUrl.path, toPath: inputPath)
                 }
                 if accessSecurity { url?.stopAccessingSecurityScopedResource() }
                 
-                // ป้องกันการค้าง: ถ้าไฟล์ก๊อบมาไม่สำเร็จ ให้เด้งออกทันที ไม่ปล่อยให้รันค้าง
+                // ดักจับเช็คไฟล์ ถ้าคัดลอกไฟล์ดิบมาใส่โฟลเดอร์แอปไม่สำเร็จ จะไม่ปล่อยให้รันค้าง
                 if !fileManager.fileExists(atPath: inputPath) {
                     DispatchQueue.main.async {
                         self.parent.isProcessing = false
-                        self.parent.alertMessage = "ไฟล์ต้นฉบับคัดลอกไม่สำเร็จ"
+                        self.parent.alertMessage = "ไฟล์ต้นฉบับคัดลอกเข้า Sandbox ไม่สำเร็จ"
                     }
                     return
                 }
@@ -90,7 +93,8 @@ struct MoviePicker: UIViewControllerRepresentable {
                     guard let self = self, let code = session?.getReturnCode() else { return }
                     
                     DispatchQueue.main.async {
-                        self.parent.isProcessing = false // เคลียร์ตัวหมุนออกเสมอเมื่อทำเสร็จ
+                        // ไม่ว่าสำเร็จหรือล้มเหลว ต้องเคลียร์ตัวหมุนโหลดออกเสมอ!
+                        self.parent.isProcessing = false
                         
                         if ReturnCode.isSuccess(code) {
                             PHPhotoLibrary.shared().performChanges({
