@@ -1,6 +1,6 @@
 #import "MainApplicationDelegate.h"
 #import "SplashAnimation.h"
-#import "app-Swift.h" 
+#import <app-Swift.h>
 
 @implementation MainApplicationDelegate {
     UIViewController *_rootViewController; // เปลี่ยนประเภทเป็น UIViewController ทั่วไป
