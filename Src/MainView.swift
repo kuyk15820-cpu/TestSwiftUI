@@ -1,72 +1,95 @@
 import SwiftUI
 import PhotosUI
 import ffmpegkit
-// import PartyUI 
+// import PartyUI // เปิดใช้ถ้าติดตั้งผ่าน package เรียบร้อย
 
 struct MainView: View {
-    @State private var currentScale: Float = 2.0
+    // กำหนดค่าคงที่สำหรับ itsscale เป็น 2.0
+    private let currentScale: Float = 2.0
+    
     @State private var isShowingPicker = false
-    @State private var isShowingAlert = false
     @State private var isShowingSettings = false
     @State private var alertMessage = ""
     @State private var isProcessing = false
-    @State private var inputScaleText = "2.0"
     
     var body: some View {
         NavigationStack {
             ZStack {
+                // พื้นหลังสีดำสนิท
                 Color.black
                     .ignoresSafeArea()
                 
-                List {
-                    Section {
-                        // ปุ่มเลือกวิดีโอ
-                        Button {
-                            isShowingPicker = true
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("เลือกวิดีโอจากคลังภาพ")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
-                                    Text("ดึงไฟล์ต้นฉบับตรงไม่ผ่านเบราว์เซอร์")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.gray)
-                                }
-                                Spacer()
-                                Image(systemName: "video.badge.plus")
-                                    .foregroundColor(.white)
-                            }
+                // รูปแบบการจัดวาง UX/UI ใหม่ (Modern Card Layout)
+                VStack(spacing: 24) {
+                    
+                    // ส่วนแสดงสถานะการทำงานปัจจุบัน (Status Banner)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.blue)
+                            Text("โหมดการทำงานปัจจุบัน")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.gray)
                         }
-                        .buttonStyle(TranslucentButtonStyle())
                         
-                        // ปุ่มตั้งค่าความเร็ว
-                        Button {
-                            inputScaleText = String(format: "%.1f", currentScale)
-                            isShowingAlert = true
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("ตั้งค่าความเร็ว (itsscale)")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(.white)
-                                    Text("ปัจจุบัน: \(String(format: "%.1f", currentScale))x (สโลว์โมชัน)")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.gray)
-                                }
-                                Spacer()
-                                Image(systemName: "speedometer")
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .buttonStyle(TranslucentButtonStyle())
-                    } header: {
-                        Text("ฟังก์ชันหลัก")
+                        Text("สโลว์โมชันคงที่ 2.0x (Slow-Motion)")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        Text("ระบบจะทำการดึงไฟล์ดิบตรงจากคลังภาพ ไม่ผ่านการบีบอัดของเบราว์เซอร์ และเร่งขยายเฟรมเวลาขึ้น 2 เท่าด้วย FFmpeg")
+                            .font(.system(size: 12))
                             .foregroundColor(.gray)
+                            .lineSpacing(4)
                     }
-                    .listRowBackground(Color(white: 0.07))
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(white: 0.07))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color(white: 0.15), lineWidth: 1)
+                    )
+                    
+                    Spacer()
+                    
+                    // ปุ่มหลักในการเลือกวิดีโอ (เด่นชัดอยู่กลางหน้าจอ/ตำแหน่งกดง่าย)
+                    Button {
+                        isShowingPicker = true
+                    } label: {
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("เลือกวิดีโอจากคลังภาพ")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                Text("เริ่มกระบวนการแปลงไฟล์ทันที")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.lightGray)
+                            }
+                            Spacer()
+                            Image(systemName: "video.badge.plus.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(TranslucentButtonStyle()) // ใช้ดีไซน์ PartyUI
+                    
+                    Spacer()
+                    Spacer()
                 }
-                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                
+                // เรียกใช้คอมโพเนนต์เบื้องหลังแบบ FullScreenCover ตามโครงสร้างที่ทำงานได้เสถียรที่สุด
+                .fullScreenCover(isPresented: $isShowingPicker) {
+                    MoviePicker(
+                        currentScale: .constant(currentScale), // ส่งค่าคงที่ 2.0 ไปในรูปแบบ Binding Constant
+                        isProcessing: $isProcessing,
+                        alertMessage: $alertMessage,
+                        isShowingPicker: $isShowingPicker
+                    )
+                    .background(BackgroundCleanerView())
+                }
                 
                 // Spinner แสดงเมื่อกำลังประมวลผลวิดีโอ
                 if isProcessing {
@@ -99,23 +122,7 @@ struct MainView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
-            // [แก้ไขจุดเรียกใช้] ใช้การครอบแบบโปร่งใสระดับหน้าต่างหลัก เพื่อคงเธรดการประมวลผลไว้
-            .fullScreenCover(isPresented: $isShowingPicker) {
-                MoviePicker(currentScale: $currentScale, isProcessing: $isProcessing, alertMessage: $alertMessage, isShowingPicker: $isShowingPicker)
-                    .background(BackgroundCleanerView()) // ลบพื้นหลังส่วนเกินเพื่อให้โปร่งแสงและลื่นไหล
-            }
-            .alert("ตั้งค่าตัวคูณเวลา", isPresented: $isShowingAlert) {
-                TextField("เช่น 2.0 หรือ 0.5", text: $inputScaleText)
-                    .keyboardType(.decimalPad)
-                Button("ตกลง") {
-                    if let value = Float(inputScaleText), value > 0 {
-                        currentScale = value
-                    }
-                }
-                Button("ยกเลิก", role: .cancel) {}
-            } message: {
-                Text("ใส่ค่า itsscale ที่ต้องการรันในคำสั่ง FFmpeg")
-            }
+            // Alert แสดงสถานะการทำงานตอนท้าย
             .alert("ระบบทำงาน", isPresented: Binding<Bool>(
                 get: { !alertMessage.isEmpty },
                 set: { _ in alertMessage = "" }
@@ -129,7 +136,7 @@ struct MainView: View {
     }
 }
 
-// โครงสร้างเสริมเพื่อช่วยเคลียร์สีพื้นหลังหน้าต่าง FullScreen
+// โครงสร้างเสริมเคลียร์สีพื้นหลังหน้าต่าง FullScreen
 struct BackgroundCleanerView: UIViewRepresentable {
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
