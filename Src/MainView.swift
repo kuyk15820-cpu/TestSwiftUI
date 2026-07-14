@@ -63,7 +63,7 @@ struct MainView: View {
                                     .foregroundColor(.white)
                                 Text("เริ่มกระบวนการแปลงไฟล์ทันที")
                                     .font(.system(size: 13))
-                                    .foregroundColor(.lightGray)
+                                    .foregroundColor(.gray)
                             }
                             Spacer()
                             Image(systemName: "video.badge.plus.fill")
