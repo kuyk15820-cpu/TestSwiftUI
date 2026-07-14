@@ -6,7 +6,7 @@ struct MoviePicker: UIViewControllerRepresentable {
     @Binding var currentScale: Float
     @Binding var isProcessing: Bool
     @Binding var alertMessage: String
-    @Binding var isShowingPicker: Bool // เชื่อมสถานะการเปิดปิดตรงๆ
+    @Binding var isShowingPicker: Bool
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration(photoLibrary: .shared())
@@ -32,16 +32,13 @@ struct MoviePicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            // ปิดตัวเลือกระบบภาพ
-            picker.dismiss(animated: true) {
-                // ปิดการเรนเดอร์ Element ใน SwiftUI หลังจาก UI หน้าต่างผลลัพธ์ย่อยหายไปแล้ว
-                self.parent.isShowingPicker = false
-            }
+            // เมื่อเลือกหรือกดยกเลิก ให้ปิดหน้าจอการดึงรูปภาพของระบบออกไปทันที
+            parent.isShowingPicker = false
             
             guard let result = results.first else { return }
             let provider = result.itemProvider
             
-            // สั่งให้ตัวโหลดเริ่มทำงานทันทีบน Main เธรด
+            // อัปเดตสถานะให้ MainView สั่งเปิด Loading
             DispatchQueue.main.async {
                 self.parent.isProcessing = true
             }
@@ -71,14 +68,12 @@ struct MoviePicker: UIViewControllerRepresentable {
                 try? fileManager.removeItem(atPath: inputPath)
                 try? fileManager.removeItem(atPath: outputPath)
                 
-                // ถือครองสิทธิ์ชั่วคราวเพื่อคัดลอกไฟล์ต้นฉบับ
                 let accessSecurity = url?.startAccessingSecurityScopedResource() ?? false
                 if let sourceUrl = url {
                     try? fileManager.copyItem(atPath: sourceUrl.path, toPath: inputPath)
                 }
                 if accessSecurity { url?.stopAccessingSecurityScopedResource() }
                 
-                // ดักจับเช็คไฟล์ ถ้าคัดลอกไฟล์ดิบมาใส่โฟลเดอร์แอปไม่สำเร็จ จะไม่ปล่อยให้รันค้าง
                 if !fileManager.fileExists(atPath: inputPath) {
                     DispatchQueue.main.async {
                         self.parent.isProcessing = false
@@ -93,7 +88,6 @@ struct MoviePicker: UIViewControllerRepresentable {
                     guard let self = self, let code = session?.getReturnCode() else { return }
                     
                     DispatchQueue.main.async {
-                        // ไม่ว่าสำเร็จหรือล้มเหลว ต้องเคลียร์ตัวหมุนโหลดออกเสมอ!
                         self.parent.isProcessing = false
                         
                         if ReturnCode.isSuccess(code) {
