@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
 import ffmpegkit
-// import PartyUI // เปิดใช้ถ้าติดตั้งผ่าน package เรียบร้อย
+// import PartyUI 
 
 struct MainView: View {
     @State private var currentScale: Float = 2.0
@@ -15,7 +15,6 @@ struct MainView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // พื้นหลังสีดำสนิท
                 Color.black
                     .ignoresSafeArea()
                 
@@ -23,6 +22,7 @@ struct MainView: View {
                     Section {
                         // ปุ่มเลือกวิดีโอ
                         Button {
+                            // กดแล้วสั่งให้หน้าต่างเลือกทำงานแบบ Background เอนทิตีแทนการเปิด Sheet
                             isShowingPicker = true
                         } label: {
                             HStack {
@@ -39,7 +39,7 @@ struct MainView: View {
                                     .foregroundColor(.white)
                             }
                         }
-                        .buttonStyle(TranslucentButtonStyle()) // ใช้ PartyUI Style
+                        .buttonStyle(TranslucentButtonStyle())
                         
                         // ปุ่มตั้งค่าความเร็ว
                         Button {
@@ -60,30 +60,40 @@ struct MainView: View {
                                     .foregroundColor(.white)
                             }
                         }
-                        .buttonStyle(TranslucentButtonStyle()) // ใช้ PartyUI Style
+                        .buttonStyle(TranslucentButtonStyle())
                     } header: {
                         Text("ฟังก์ชันหลัก")
                             .foregroundColor(.gray)
                     }
-                    .listRowBackground(Color(white: 0.07)) // สีเทาเข้มแบบเดิม
+                    .listRowBackground(Color(white: 0.07))
                 }
                 .scrollContentBackground(.hidden)
                 
+                // [จุดแก้ไขสำคัญ] เรียกใช้คอมโพเนนต์ระบบเบื้องหลัง ไม่ผ่านชีต เพื่อป้องกันการตัดสิทธิ์ของ Background Process
+                if isShowingPicker {
+                    MoviePicker(currentScale: $currentScale, isProcessing: $isProcessing, alertMessage: $alertMessage, isShowingPicker: $isShowingPicker)
+                        .frame(width: 0, height: 0) // ซ่อนไม่ให้เห็นตัวตน แต่เปิดให้ Lifecycle ทำงานร่วมกันได้
+                }
+                
                 // Spinner แสดงเมื่อกำลังประมวลผลวิดีโอ
                 if isProcessing {
-                    Color.black.opacity(0.4)
+                    Color.black.opacity(0.6)
                         .ignoresSafeArea()
-                    ProgressView("กำลังประมวลผล...")
-                        .progressViewStyle(CircularProgressViewStyle(tint: .blue))
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color(white: 0.15))
-                        .cornerRadius(10)
+                    VStack(spacing: 15) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                            .scaleEffect(1.5)
+                        Text("กำลังประมวลผล...")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.white)
+                    }
+                    .padding(25)
+                    .background(Color(white: 0.12))
+                    .cornerRadius(15)
                 }
             }
             .navigationTitle("TT-Tool")
             .toolbar {
-                // ปุ่มฟันเฟืองสำหรับเปิดหน้า SettingsView ที่คุยกันก่อนหน้านี้
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isShowingSettings = true
@@ -93,15 +103,10 @@ struct MainView: View {
                     }
                 }
             }
-            // เรียกเปิดหน้า SettingsView แบบ Sheet
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
-            // เรียกเปิดระบบเลือกไฟล์ (PHPicker)
-            .sheet(isPresented: $isShowingPicker) {
-                MoviePicker(currentScale: $currentScale, isProcessing: $isProcessing, alertMessage: $alertMessage)
-            }
-            // Alert สำหรับป้อนค่าความเร็ว
+            // Alert ตั้งค่าตัวคูณความเร็ว
             .alert("ตั้งค่าตัวคูณเวลา", isPresented: $isShowingAlert) {
                 TextField("เช่น 2.0 หรือ 0.5", text: $inputScaleText)
                     .keyboardType(.decimalPad)
@@ -124,6 +129,6 @@ struct MainView: View {
                 Text(alertMessage)
             }
         }
-        .environment(\.colorScheme, .dark) // บังคับแสดงผลดาร์กโหมด
+        .environment(\.colorScheme, .dark)
     }
 }
