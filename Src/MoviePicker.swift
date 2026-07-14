@@ -32,12 +32,16 @@ struct MoviePicker: UIViewControllerRepresentable {
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            // ปิดหน้า Picker ทันทีเมื่อเลือกเสร็จ
             parent.dismiss()
             
             guard let result = results.first else { return }
             let provider = result.itemProvider
             
-            parent.isProcessing = true
+            // อัปเดตสถานะ UI บน Main Thread
+            DispatchQueue.main.async {
+                self.parent.isProcessing = true
+            }
             
             var typeIdentifier = "public.mpeg-4"
             if !provider.hasItemConformingToTypeIdentifier(typeIdentifier),
@@ -49,7 +53,8 @@ struct MoviePicker: UIViewControllerRepresentable {
                 guard let self = self else { return }
                 
                 if error != nil || url == nil {
-                    DispatchQueue.main.sync {
+                    // [แก้ไข] เปลี่ยนจาก .sync เป็น .async ป้องกัน Deadlock
+                    DispatchQueue.main.async {
                         self.parent.isProcessing = false
                         self.parent.alertMessage = "เกิดข้อผิดพลาดในการดึงไฟล์ต้นฉบับ"
                     }
@@ -74,13 +79,13 @@ struct MoviePicker: UIViewControllerRepresentable {
                     guard let self = self, let code = session?.getReturnCode() else { return }
                     
                     DispatchQueue.main.async {
-                        self.parent.isProcessing = false
-                        
                         if ReturnCode.isSuccess(code) {
                             PHPhotoLibrary.shared().performChanges({
                                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: URL(fileURLWithPath: outputPath))
                             }) { success, error in
+                                // กลับมาอัปเดต UI ผลลัพธ์บน Main Thread เสมอ
                                 DispatchQueue.main.async {
+                                    self.parent.isProcessing = false
                                     if success {
                                         self.parent.alertMessage = "แปลงไฟล์และบันทึกลงคลังภาพความละเอียด 1080p สำเร็จ!"
                                     } else {
@@ -89,6 +94,7 @@ struct MoviePicker: UIViewControllerRepresentable {
                                 }
                             }
                         } else {
+                            self.parent.isProcessing = false
                             self.parent.alertMessage = "คำสั่ง FFmpeg ทำงานล้มเหลว"
                         }
                     }
