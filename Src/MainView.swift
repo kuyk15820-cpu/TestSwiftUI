@@ -22,7 +22,6 @@ struct MainView: View {
                     Section {
                         // ปุ่มเลือกวิดีโอ
                         Button {
-                            // กดแล้วสั่งให้หน้าต่างเลือกทำงานแบบ Background เอนทิตีแทนการเปิด Sheet
                             isShowingPicker = true
                         } label: {
                             HStack {
@@ -69,12 +68,6 @@ struct MainView: View {
                 }
                 .scrollContentBackground(.hidden)
                 
-                // [จุดแก้ไขสำคัญ] เรียกใช้คอมโพเนนต์ระบบเบื้องหลัง ไม่ผ่านชีต เพื่อป้องกันการตัดสิทธิ์ของ Background Process
-                if isShowingPicker {
-                    MoviePicker(currentScale: $currentScale, isProcessing: $isProcessing, alertMessage: $alertMessage, isShowingPicker: $isShowingPicker)
-                        .frame(width: 0, height: 0) // ซ่อนไม่ให้เห็นตัวตน แต่เปิดให้ Lifecycle ทำงานร่วมกันได้
-                }
-                
                 // Spinner แสดงเมื่อกำลังประมวลผลวิดีโอ
                 if isProcessing {
                     Color.black.opacity(0.6)
@@ -106,7 +99,11 @@ struct MainView: View {
             .sheet(isPresented: $isShowingSettings) {
                 SettingsView()
             }
-            // Alert ตั้งค่าตัวคูณความเร็ว
+            // [แก้ไขจุดเรียกใช้] ใช้การครอบแบบโปร่งใสระดับหน้าต่างหลัก เพื่อคงเธรดการประมวลผลไว้
+            .fullScreenCover(isPresented: $isShowingPicker) {
+                MoviePicker(currentScale: $currentScale, isProcessing: $isProcessing, alertMessage: $alertMessage, isShowingPicker: $isShowingPicker)
+                    .background(BackgroundCleanerView()) // ลบพื้นหลังส่วนเกินเพื่อให้โปร่งแสงและลื่นไหล
+            }
             .alert("ตั้งค่าตัวคูณเวลา", isPresented: $isShowingAlert) {
                 TextField("เช่น 2.0 หรือ 0.5", text: $inputScaleText)
                     .keyboardType(.decimalPad)
@@ -119,7 +116,6 @@ struct MainView: View {
             } message: {
                 Text("ใส่ค่า itsscale ที่ต้องการรันในคำสั่ง FFmpeg")
             }
-            // Alert แสดงสถานะการทำงานตอนท้าย
             .alert("ระบบทำงาน", isPresented: Binding<Bool>(
                 get: { !alertMessage.isEmpty },
                 set: { _ in alertMessage = "" }
@@ -131,4 +127,16 @@ struct MainView: View {
         }
         .environment(\.colorScheme, .dark)
     }
+}
+
+// โครงสร้างเสริมเพื่อช่วยเคลียร์สีพื้นหลังหน้าต่าง FullScreen
+struct BackgroundCleanerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        DispatchQueue.main.async {
+            view.superview?.superview?.backgroundColor = .clear
+        }
+        return view
+    }
+    func updateUIView(_ uiView: UIView, context: Context) {}
 }
